@@ -45,18 +45,18 @@ def main(argv):
     udp, addr = setup_socket_reciever(port)
     with open(file_name, "r") as f:
         d = Decider(f.read())
-
-    while True:
+    not_done = True 
+    while not_done:
         rlist, _, _ = select([udp], [], [])
         for sock in rlist:
             data, address = sock.recvfrom(4096)
             header, parsed_data = parse_segment(data)
             if d.is_valid():
-                print header[0]
+                print header
                 udp.sendto(header[0],address)
 
                 if int(header[1]) == 1:
-                    break
+                    not_done = False
 
 
 if __name__ == "__main__":

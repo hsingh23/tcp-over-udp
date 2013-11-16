@@ -52,7 +52,6 @@ def main(argv):
         else:
             for sock in rlist:
                 ack, addr = sock.recvfrom(4096)
-                set_trace()
                 t.run(Event("ack", ack))
 
 

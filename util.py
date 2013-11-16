@@ -126,9 +126,12 @@ class SequenceCounter(object):
 
     def next(s):
         s.current_count += 1
-        if s.current_count == s.max_count:
+        if s.current_count % s.max_count == 0:
             s.current_count = 0
         return s.current_count
+
+    def peek_next(s):
+        return s.current_count + 1 if (s.current_count + 1) != s.max_count else 0
 
 
 class SegmentCount(object):
@@ -172,7 +175,7 @@ class Window(object):
         s.cwnd = x if x < s.max_cwnd else s.max_cwnd
 
     def shift_window(s):
-        while s.sent_list.peek() and s.sent[s.sent_list.peek()].ack_count > 0:
+        while s.sent_list.peek() is not None and s.sent[s.sent_list.peek()].ack_count > 0:
             del s.sent[s.sent_list.pop()]
 
     def to_segment(s, data, current_sequence_number, last):
