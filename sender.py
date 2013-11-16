@@ -22,16 +22,22 @@ class TCPStateMachine(object):
         return int(segment)
 
     def chunkify_file(self, file_name, data_size):
-        chuncks = []
+        chunks = []
         with open(file_name, "r") as f:
-            chuncks.append([0, f.read(data_size)])
-        chuncks[-1][0] = 1
-        return chuncks
+            while True:
+                x = f.read(data_size)
+                if len(x) > 0:
+                    chunks.append([0, x])
+                else:
+                    break
+        chunks[-1][0] = 1
+        return chunks
 
     def run(self, event):
         if event.name == "ack":
             ack_num = self.parse_segment(event.data)
             event = self.window.add_ack(ack_num)
+        self.current_state = self.current_state.next(event, self.window)
 
 
 def main(argv):
@@ -40,11 +46,13 @@ def main(argv):
     t = TCPStateMachine(file_name, udp, destination)
 
     while not t.done():
-        acks, _, _ = select([udp], [], [], t.window.MSS)
-        if len(acks) == 0:
+        rlist, _, _ = select([udp], [], [], t.window.MSS)
+        if len(rlist) == 0:
             t.run(Event("timeout", None))
         else:
-            for ack in acks:
+            for sock in rlist:
+                ack, addr = sock.recvfrom(4096)
+                set_trace()
                 t.run(Event("ack", ack))
 
 

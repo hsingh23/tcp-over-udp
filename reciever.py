@@ -42,19 +42,19 @@ class Decider(object):
 
 def main(argv):
     port, file_name = parse_input_reciever(argv)
-    udp = setup_socket_reciever(port)
+    udp, addr = setup_socket_reciever(port)
     with open(file_name, "r") as f:
         d = Decider(f.read())
 
     while True:
-        segments, _, _ = select([udp], [], [])
-        for segment in segments:
-            set_trace()
-            print "GOT", segment
-            header, data = parse_segment(segment)
+        rlist, _, _ = select([udp], [], [])
+        for sock in rlist:
+            data, address = sock.recvfrom(4096)
+            header, parsed_data = parse_segment(data)
             if d.is_valid():
-                udp.sendto(header[0])
-                print data, d.rsn
+                print header[0]
+                udp.sendto(header[0],address)
+
                 if int(header[1]) == 1:
                     break
 
