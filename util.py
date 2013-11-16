@@ -16,7 +16,7 @@ def setup_socket_reciever(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((socket.gethostbyname("0.0.0.0"), int(port)))
-    return sock
+    return sock, (socket.gethostbyname("0.0.0.0"), int(port))
 
 
 def parse_input_sender(argv):
@@ -194,7 +194,6 @@ class Window(object):
 
     def send_segment(s, segment):
         s.udp.sendto(segment, s.destination)
-        set_trace()
 
     def add_new_segments(s):
         for _ in xrange(s.unused_capacity()):
