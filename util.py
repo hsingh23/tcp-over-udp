@@ -1,30 +1,28 @@
 import getopt
 import socket
 from collections import namedtuple
+from ipdb import set_trace
 
 Event = namedtuple("Event", ["name", "data"])
 
 
-def setup_socket(host, port):
+def setup_socket_sender(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((host, port))
+    # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    return sock, (socket.gethostbyname(host), int(port))
+
+
+def setup_socket_reciever(port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((socket.gethostbyname("0.0.0.0"), int(port)))
     return sock
-
-
-def consumer(func):
-    def start(*args, **kwargs):
-        c = func(*args, **kwargs)
-        c.next()
-        return c
-    return start
 
 
 def parse_input_sender(argv):
     help = """To set host, type --domain=localhost or -d localhost
                 To set port, type --port=9000 or -p 9000
-                To set file, type --file=9000 or -f 9000
-                Try python client.py -d localhost -p 9000 -f 1b"""
+                To set file, type --file=9000 or -f 9000"""
     try:
         opts, args = getopt.getopt(
             argv, "hd:p:f:", ["help", "domain=", "port=", "file="])
@@ -92,6 +90,8 @@ class SentList(object):
     def __init__(self):
         super(SentList, self).__init__()
         self.len = 0
+        self.head = None
+        self.tail = None
 
     def add(s, key):
         s.len += 1
@@ -112,7 +112,7 @@ class SentList(object):
         return None
 
     def peek(s):
-        return s.head.key
+        return s.head.key if s.head else None
 
 
 class SequenceCounter(object):
@@ -153,11 +153,15 @@ class Window(object):
         s.sequence_counter = SequenceCounter(kwargs["max_sequence_number"])
         s.timeout_length = kwargs["timeout_length"]
         s.cwnd = s.MSS
+        s.destination = kwargs["destination"]
         s.dup_ack_count = 0
-        s.empty_window = False
+        s.no_more_segments = False
         s.sent = {}
         s.state_machine = kwargs["state_machine"]
+        s.get_segment = None
+        s.chunks = iter(kwargs["chunks"])
         s.sent_list = SentList()
+        s.udp = kwargs["udp"]
 
     def unused_capacity(s):
         used = len(s.sent) * s.MSS
@@ -168,8 +172,11 @@ class Window(object):
         s.cwnd = x if x < s.max_cwnd else s.max_cwnd
 
     def shift_window(s):
-        while s.sent[s.sent_list.peek()].ack_count > 0:
+        while s.sent_list.peek() and s.sent[s.sent_list.peek()].ack_count > 0:
             del s.sent[s.sent_list.pop()]
+
+    def to_segment(s, data, current_sequence_number, last):
+            return "SEQ:%s,LAST:%s##%s" % (current_sequence_number, last, data)
 
     def add_ack(s, key):
         if key in s.sent:
@@ -185,18 +192,30 @@ class Window(object):
                     event = Event("dup_ack", key)
         return event
 
+    def send_segment(s, segment):
+        s.udp.sendto(segment, s.destination)
+        set_trace()
+
     def add_new_segments(s):
-        for _ in s.unused_capacity():
+        for _ in xrange(s.unused_capacity()):
             key = s.sequence_counter.next()
             try:
-                s.sent[key] = SegmentCount(s.state_machine.get_segment(), 0)
+                last, data = s.chunks.next()
+                segment = s.to_segment(data, key, last)
+                s.sent[key] = SegmentCount(segment, 0)
                 s.sent_list.add(key)
-                s.empty_window = False
+                s.send_segment(segment)
             except StopIteration:
-                s.empty_window = True
+                s.no_more_segments = True
                 break
 
-    def run(s):
+    def transmit_as_allowed(s):
         s.shift_window()
         s.add_new_segments()
-        for _ in s.unused_capacity():
+
+    def retansmit_missing_segments(s):
+        for segment_count in s.sent:
+            s.state_machine.send_segment(segment_count.segment)
+
+    def empty_window(s):
+        return len(s.sent) == 0
