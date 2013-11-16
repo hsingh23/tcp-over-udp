@@ -1,7 +1,8 @@
 #!/usr/bin/python
 from sys import argv
-from util import setup_socket, parse_input_reciever
+from util import setup_socket_reciever, parse_input_reciever
 from select import select
+from ipdb import set_trace
 
 
 def parse_segment(segment):
@@ -41,16 +42,21 @@ class Decider(object):
 
 def main(argv):
     port, file_name = parse_input_reciever(argv)
-    udp = setup_socket("", port)
+    udp = setup_socket_reciever(port)
     with open(file_name, "r") as f:
-        d = Decider(f.readline())
+        d = Decider(f.read())
 
     while True:
         segments, _, _ = select([udp], [], [])
         for segment in segments:
+            set_trace()
+            print "GOT", segment
             header, data = parse_segment(segment)
             if d.is_valid():
-                udp.sendall(data[0])
+                udp.sendto(header[0])
+                print data, d.rsn
+                if int(header[1]) == 1:
+                    break
 
 
 if __name__ == "__main__":

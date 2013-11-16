@@ -5,9 +5,9 @@
 #   watch(%r{file/path}) { `command(s)` }
 #
 guard 'shell' do
-  watch(/server.py/) {
-    `pkill -15 server.py`
-    pid = Process.spawn("./server.py -p 9000")
+  watch(/util.py/) {
+    `pkill -15 sender.py`
+    pid = Process.spawn("python sender.py -p 9100 -d localhost -f sender.py")
     Process.detach pid
   }
 end
