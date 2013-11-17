@@ -11,38 +11,41 @@ Header = namedtuple("Header", ["sequence_number", "is_last"])
 def parse_segment(segment):
     header, _, data = segment.partition("##")
     seq, last = ((k.split(":")[1]) for k in header.split(","))
-    return Header(seq, int(last)), data
+    return Header(int(seq), int(last)), data
+
 
 class Reassemble(object):
 
     def __init__(self):
-        super(Reassemble, self).__init__()
         self.buffer = {}
         self.max_buffer_size = 25
         self.max_sequence_num = 9000
         self.result = ""
-        self.cur_sequence = 0
+        self.current_sequence = 0
 
     def buffer_not_full(self):
         return len(self.buffer) <= self.max_buffer_size
 
+    def expecting(self):
+        return str(8999 if self.current_sequence == 0 else self.current_sequence - 1)
 
     def add(self, seq, data):
         seq = seq % self.max_sequence_num
 
-        if seq == self.cur_sequence:
-            self.result += seq
-            self.cur_sequence = (self.cur_sequence +1) % self.max_buffer_size
-        elif self.buffer_not_full() and seq > self.cur_sequence:
+        if seq == self.current_sequence:
+            self.result += data
+            self.current_sequence = (self.current_sequence + 1) % self.max_sequence_num
+        elif self.buffer_not_full() and seq > self.current_sequence:
             self.buffer[seq] = data
         for k, v in sorted(self.buffer.iteritems()):
-            if k == self.cur_sequence:
+            if k == self.current_sequence:
                 self.result += v
-                self.cur_sequence += 1
+                self.current_sequence += 1
                 del self.buffer[k]
             else:
                 break
-        return self.cur_sequence
+        return self.expecting()
+
 
 class Decider(object):
 
@@ -78,6 +81,7 @@ def main(argv):
     udp = setup_socket_reciever(port)
     with open(file_name, "r") as f:
         d = Decider(f.read())
+    reassembler = Reassemble()
     not_done = True
     while not_done:
         rlist, _, _ = select([udp], [], [])
@@ -85,11 +89,13 @@ def main(argv):
             data, address = sock.recvfrom(4096)
             header, parsed_data = parse_segment(data)
             if d.is_valid():
-                udp.sendto(header.sequence_number, address)
+                ack = reassembler.add(header.sequence_number, parsed_data)
+                udp.sendto(ack, address)
                 # print parsed_data
                 if header.is_last == 1:
                     not_done = False
-
+    with open("check_file", "w") as f:
+        f.writelines(reassembler.result)
 
 if __name__ == "__main__":
     main(argv[1:])
