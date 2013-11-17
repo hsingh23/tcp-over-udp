@@ -1,6 +1,6 @@
 import getopt
 import socket
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from ipdb import set_trace
 from time import time as current_time
 
@@ -9,13 +9,11 @@ Event = namedtuple("Event", ["name", "data"])
 
 def setup_socket_sender(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return sock, (socket.gethostbyname(host), int(port))
 
 
 def setup_socket_reciever(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((socket.gethostbyname("0.0.0.0"), int(port)))
     return sock
 
@@ -77,48 +75,6 @@ def parse_input_reciever(argv):
     return port, file_name
 
 
-class Node(object):
-
-    """docstring for Node"""
-
-    def __init__(self, key, next):
-        super(Node, self).__init__()
-        self.key = key
-        self.next = next
-
-
-class SentList(object):
-
-    """docstring for SentList"""
-
-    def __init__(self):
-        super(SentList, self).__init__()
-        self.len = 0
-        self.head = None
-        self.tail = None
-
-    def add(s, key):
-        s.len += 1
-        if s.head:
-            node = Node(key, None)
-            s.tail.next = node
-            s.tail = node
-        else:
-            s.head = Node(key, None)
-            s.tail = s.head
-
-    def pop(s):
-        if s.head:
-            s.len -= 1
-            t = s.head
-            s.head = t.next
-            return t.key
-        return None
-
-    def peek(s):
-        return s.head.key if s.head else None
-
-
 class SequenceCounter(object):
 
     """docstring for SequenceCounter"""
@@ -129,23 +85,14 @@ class SequenceCounter(object):
         self.current_count = -1
 
     def next(s):
-        s.current_count += 1
-        if s.current_count % s.max_count == 0:
-            s.current_count = 0
+        s.current_count = (s.current_count + 1) % s.max_count
         return s.current_count
 
     def peek_next(s):
-        return s.current_count + 1 if (s.current_count + 1) != s.max_count else 0
+        return (s.current_count + 1) % s.max_count
 
-
-class SegmentCount(object):
-
-    """Segment, ack_count tuple"""
-
-    def __init__(self, segment, ack_count):
-        super(SegmentCount, self).__init__()
-        self.segment = segment
-        self.ack_count = ack_count
+    def next_number(s, k):
+        return (k + 1) % s.max_count
 
 
 class Window(object):
@@ -163,11 +110,10 @@ class Window(object):
         s.destination = kwargs["destination"]
         s.dup_ack_count = 0
         s.no_more_segments = False
-        s.sent = {}
+        s.sent = OrderedDict()
         s.state_machine = kwargs["state_machine"]
         s.get_segment = None
         s.chunks = iter(kwargs["chunks"])
-        s.sent_list = SentList()
         s.udp = kwargs["udp"]
         s.cwnd_file = ""
         s.trace_file = ""
@@ -175,6 +121,8 @@ class Window(object):
         s.estimated_RTT = None
         s.dev_RTT = 0.1
         s.sampling = None
+        s.last_ack = None
+        s.states_log = ""
 
     def start_sample(s, key):
         if not s.sampling:
@@ -190,7 +138,6 @@ class Window(object):
                     s.estimated_RTT = sample_RTT
                 s.dev_RTT = 0.75 * s.dev_RTT + .25 * abs(sample_RTT - s.estimated_RTT)
                 s.timeout_length = s.estimated_RTT + 4 * s.dev_RTT
-
             s.sampling = None
 
     def update_trace(s, seq):
@@ -208,40 +155,35 @@ class Window(object):
         x = s.cwnd + more_in_bytes
         s.cwnd = x if x < s.max_cwnd else s.max_cwnd
 
-    def shift_window(s):
-        while s.sent_list.peek() is not None and s.sent[s.sent_list.peek()].ack_count > 0:
-            s.update_estimate(s.sent_list.peek())
-            del s.sent[s.sent_list.pop()]
-
     def to_segment(s, data, current_sequence_number, last):
             return "SEQ:%s,LAST:%s##%s" % (current_sequence_number, last, data)
 
     def add_ack(s, key):
-        if key in s.sent:
-            ack_count = s.sent[key].ack_count
-            if ack_count == 0:
-                event = Event("new_ack", key)
-                s.sent[key].ack_count += 1
-            elif ack_count == 1:
-                s.dup_ack_count += 1
-                if s.dup_ack_count > 3:
-                    event = Event("triple_ack", key)
-                else:
-                    event = Event("dup_ack", key)
-            return event
-        return None
+        if s.last_ack == key:
+            s.dup_ack_count += 1
+            if s.dup_ack_count == 2:
+                event = Event("dup_ack", key)
+            else:
+                event = Event("triple_ack", key)
+        else:
+            s.dup_ack_count = 0
+            s.last_ack = key
+            event = Event("new_ack", key)
+            for k, v in s.sent.items():
+                if k <= key:
+                    del s.sent[k]
+        return event
 
     def send_segment(s, segment):
         s.udp.sendto(segment, s.destination)
 
-    def add_new_segments(s):
+    def transmit_as_allowed(s):
         for _ in xrange(s.unused_capacity()):
             key = s.sequence_counter.next()
             try:
                 last, data = s.chunks.next()
                 segment = s.to_segment(data, key, last)
-                s.sent[key] = SegmentCount(segment, 0)
-                s.sent_list.add(key)
+                s.sent[key] = segment
                 s.start_sample(key)
                 s.send_segment(segment)
 
@@ -249,13 +191,18 @@ class Window(object):
                 s.no_more_segments = True
                 break
 
-    def transmit_as_allowed(s):
-        s.shift_window()
-        s.add_new_segments()
-
-    def retansmit_missing_segments(s):
-        for segment_count in s.sent.itervalues():
-            s.send_segment(segment_count.segment)
+    def retansmit_missing_segment(s, key):
+        if key is not None:
+            key = s.sequence_counter.next_number(key)
+            if key in s.sent:
+                s.send_segment(s.sent[key])
+        elif s.last_ack is not None:
+            set_trace()
+            last_ack = s.sequence_counter.next_number(s.last_ack)
+            if last_ack in s.sent:
+                s.send_segment(s.sent[last_ack])
+        else:
+            set_trace()
 
     def empty_window(s):
         return len(s.sent) == 0

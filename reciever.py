@@ -55,13 +55,13 @@ class Decider(object):
         super(Decider, self).__init__()
         self.rsn = 0
         x = lossfile.split()
-        if x[0] == 0:
+        if int(x[0]) == 0:
             self.is_valid = self.yes
-        elif x[0] == 1:
-            self.discard = x[1]
+        elif int(x[0]) == 1:
+            self.discard = int(x[1])
             self.is_valid = self.repeated
-        else:
-            self.discard = set(x[1:])
+        elif int(x[0]) == 2:
+            self.discard = set([int(i) for i in x[1:]])
             self.is_valid = self.selected
 
     def yes(s):
@@ -89,9 +89,11 @@ def main(argv):
             data, address = sock.recvfrom(4096)
             header, parsed_data = parse_segment(data)
             if d.is_valid():
+                # if header.sequence_number == 24:
+                    # set_trace()
                 ack = reassembler.add(header.sequence_number, parsed_data)
+                print "Got %s, Sent %s" %(header.sequence_number, ack)
                 udp.sendto(ack, address)
-                # print parsed_data
                 if header.is_last == 1:
                     not_done = False
     with open("check_file", "w") as f:
