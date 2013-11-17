@@ -2,6 +2,7 @@ import getopt
 import socket
 from collections import namedtuple
 from ipdb import set_trace
+from time import time as current_time
 
 Event = namedtuple("Event", ["name", "data"])
 
@@ -16,7 +17,7 @@ def setup_socket_reciever(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((socket.gethostbyname("0.0.0.0"), int(port)))
-    return sock, (socket.gethostbyname("0.0.0.0"), int(port))
+    return sock
 
 
 def parse_input_sender(argv):
@@ -140,8 +141,8 @@ class SegmentCount(object):
 
     def __init__(self, segment, ack_count):
         super(SegmentCount, self).__init__()
-        self.ack_count = ack_count
         self.segment = segment
+        self.ack_count = ack_count
 
 
 class Window(object):
@@ -165,6 +166,36 @@ class Window(object):
         s.chunks = iter(kwargs["chunks"])
         s.sent_list = SentList()
         s.udp = kwargs["udp"]
+        s.cwnd_file = ""
+        s.trace_file = ""
+        s.start_time = current_time()
+        s.estimated_RTT = None
+        s.dev_RTT = 0.1
+        s.sampling = None
+
+    def start_sample(s, key):
+        if not s.sampling:
+            s.sampling = (key, current_time())
+
+    def update_estimate(s, key):
+        if s.sampling and s.sampling[0] == key:
+            if s.sent[key].ack_count == 1:
+                sample_RTT = current_time() - s.sampling[1]
+                if s.estimated_RTT:
+                    s.estimated_RTT = 0.875 * s.estimated_RTT + .125 * sample_RTT
+                else:
+                    s.estimated_RTT = sample_RTT
+                s.dev_RTT = 0.75 * s.dev_RTT + .25 * abs(sample_RTT - s.estimated_RTT)
+                s.timeout_length = s.estimated_RTT + 4 * s.dev_RTT
+
+            s.sampling = None
+
+    def update_trace(s, seq):
+        s.trace_file += "%s %s\n" % (current_time() - s.start_time, seq)
+
+    def update_cwnd(s, cwnd):
+        s.cwnd = cwnd
+        s.cwnd_file += "%s %s\n" % (current_time() - s.start_time, cwnd)
 
     def unused_capacity(s):
         used = len(s.sent) * s.MSS
@@ -176,6 +207,7 @@ class Window(object):
 
     def shift_window(s):
         while s.sent_list.peek() is not None and s.sent[s.sent_list.peek()].ack_count > 0:
+            s.update_estimate(s.sent_list.peek())
             del s.sent[s.sent_list.pop()]
 
     def to_segment(s, data, current_sequence_number, last):
@@ -206,7 +238,9 @@ class Window(object):
                 segment = s.to_segment(data, key, last)
                 s.sent[key] = SegmentCount(segment, 0)
                 s.sent_list.add(key)
+                s.start_sample(key)
                 s.send_segment(segment)
+
             except StopIteration:
                 s.no_more_segments = True
                 break
