@@ -161,7 +161,7 @@ class Window(object):
     def add_ack(s, key):
         if s.last_ack == key:
             s.dup_ack_count += 1
-            if s.dup_ack_count == 2:
+            if s.dup_ack_count == 1:
                 event = Event("dup_ack", key)
             else:
                 event = Event("triple_ack", key)
@@ -197,7 +197,6 @@ class Window(object):
             if key in s.sent:
                 s.send_segment(s.sent[key])
         elif s.last_ack is not None:
-            set_trace()
             last_ack = s.sequence_counter.next_number(s.last_ack)
             if last_ack in s.sent:
                 s.send_segment(s.sent[last_ack])

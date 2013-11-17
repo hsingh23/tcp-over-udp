@@ -10,7 +10,7 @@ class SlowStart(object):
 
     @staticmethod
     def next(event, window):
-        window.states_log += "%s,SlowStart,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data)
+        window.states_log += "%s,SlowStart,%s,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data, window.dup_ack_count)
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
@@ -20,7 +20,6 @@ class SlowStart(object):
 
         elif event.name == "new_ack":
             window.update_cwnd(window.cwnd + window.MSS)
-            window.dup_ack_count = 0
             window.transmit_as_allowed()
             window.update_trace(event.data)
             if window.cwnd >= window.ssthresh:
@@ -28,7 +27,6 @@ class SlowStart(object):
             return State.slow_start
 
         elif event.name == "dup_ack":
-            window.dup_ack_count += 1
             return State.slow_start
 
         elif event.name == "triple_ack":
@@ -43,7 +41,7 @@ class CongestionAvoidance(object):
 
     @staticmethod
     def next(event, window):
-        window.states_log += "%s,CongestionAvoidance,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data)
+        window.states_log += "%s,CongestionAvoidance,%s,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data, window.dup_ack_count)
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
@@ -53,13 +51,11 @@ class CongestionAvoidance(object):
 
         elif event.name == "new_ack":
             window.update_cwnd(window.cwnd + (window.MSS * round(window.MSS / window.cwnd, -1)))
-            window.dup_ack_count = 0
             window.update_trace(event.data)
             window.transmit_as_allowed()
             return State.congestion_avoidance
 
         elif event.name == "dup_ack":
-            window.dup_ack_count += 1
             return State.congestion_avoidance
 
         elif event.name == "triple_ack":
@@ -75,7 +71,7 @@ class FastRecovery(object):
 
     @staticmethod
     def next(event, window):
-        window.states_log += "%s,FastRecovery,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data)
+        window.states_log += "%s,FastRecovery,%s,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data, window.dup_ack_count)
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
@@ -85,8 +81,8 @@ class FastRecovery(object):
 
         elif event.name == "new_ack":
             window.update_cwnd(window.ssthresh)
-            window.dup_ack_count = 0
             window.update_trace(event.data)
+            window.transmit_as_allowed()
             return State.congestion_avoidance
 
         elif event.name == "dup_ack":
