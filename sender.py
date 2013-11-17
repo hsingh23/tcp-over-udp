@@ -64,7 +64,7 @@ def main(argv):
         f.writelines(t.window.trace_file)
     with open("./cwnd_results/cwnd-%s%s" % (file_name, loss_file), "w") as f:
         f.writelines(t.window.cwnd_file)
-    print t.ack_count, current_time() - t.window.start_time
+    print t.ack_count * 100 * 8 / (current_time() - t.window.start_time)
 
 if __name__ == "__main__":
     main(argv[1:])
