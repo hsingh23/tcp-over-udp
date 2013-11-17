@@ -8,20 +8,20 @@ from ipdb import set_trace
 
 class TCPStateMachine(object):
 
-    def __init__(self, file_name, udp, destination):
-        super(TCPStateMachine, self).__init__()
-        self.current_state = State.slow_start
-        chunks = self.chunkify_file(file_name, 100)
-        self.window = Window(**{"MSS": 100.0, "ssthresh": 1000.0, "max_sequence_number": 9000, "max_cwnd": 25, "timeout_length": 1.0, "state_machine": self, "chunks": chunks, "udp": udp, "destination": destination})
-        self.window.transmit_as_allowed()
+    def __init__(s, file_name, udp, destination):
+        super(TCPStateMachine, s).__init__()
+        s.current_state = State.slow_start
+        chunks = s.chunkify_file(file_name, 100)
+        s.window = Window(**{"MSS": 100.0, "ssthresh": 1000.0, "max_sequence_number": 9000, "max_cwnd": 25, "timeout_length": 1.0, "state_machine": s, "chunks": chunks, "udp": udp, "destination": destination})
+        s.window.transmit_as_allowed()
 
     def done(s):
         return s.window.no_more_segments and s.window.empty_window()
 
-    def parse_segment(self, segment):
+    def parse_segment(s, segment):
         return int(segment)
 
-    def chunkify_file(self, file_name, data_size):
+    def chunkify_file(s, file_name, data_size):
         chunks = []
         with open(file_name, "r") as f:
             while True:
@@ -33,11 +33,15 @@ class TCPStateMachine(object):
         chunks[-1][0] = 1
         return chunks
 
-    def run(self, event):
+    def run(s, event):
         if event.name == "ack":
-            ack_num = self.parse_segment(event.data)
-            event = self.window.add_ack(ack_num)
-        self.current_state = self.current_state.next(event, self.window)
+            print "Got %s" % event.data
+            ack_num = s.parse_segment(event.data)
+            event = s.window.add_ack(ack_num)
+        if event:
+            if event.name == "timeout":
+                print s.window.timeout_length
+            s.current_state = s.current_state.next(event, s.window)
 
 
 def main(argv):
@@ -46,7 +50,7 @@ def main(argv):
     t = TCPStateMachine(file_name, udp, destination)
 
     while not t.done():
-        rlist, _, _ = select([udp], [], [], t.window.MSS)
+        rlist, _, _ = select([udp], [], [], t.window.timeout_length)
         if len(rlist) == 0:
             t.run(Event("timeout", None))
         else:

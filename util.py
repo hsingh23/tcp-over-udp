@@ -225,7 +225,8 @@ class Window(object):
                     event = Event("triple_ack", key)
                 else:
                     event = Event("dup_ack", key)
-        return event
+            return event
+        return None
 
     def send_segment(s, segment):
         s.udp.sendto(segment, s.destination)
@@ -250,8 +251,8 @@ class Window(object):
         s.add_new_segments()
 
     def retansmit_missing_segments(s):
-        for segment_count in s.sent:
-            s.state_machine.send_segment(segment_count.segment)
+        for segment_count in s.sent.itervalues():
+            s.send_segment(segment_count.segment)
 
     def empty_window(s):
         return len(s.sent) == 0
