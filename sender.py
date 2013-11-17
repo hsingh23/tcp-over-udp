@@ -39,8 +39,7 @@ class TCPStateMachine(object):
         if event.name == "ack":
             ack_num = s.parse_segment(event.data)
             event = s.window.add_ack(ack_num)
-            if event:
-                s.ack_count += 1
+            s.ack_count += 1
         if event:
             # if event.name == "timeout":
             #     print s.window.timeout_length
@@ -64,6 +63,8 @@ def main(argv):
         f.writelines(t.window.trace_file)
     with open("./cwnd_results/cwnd-%s%s" % (file_name, loss_file), "w") as f:
         f.writelines(t.window.cwnd_file)
+    with open("./state_logs/states-%s%s" % (file_name, loss_file), "w") as f:
+        f.writelines(t.window.states_log)
     print t.ack_count * 100 * 8 / (current_time() - t.window.start_time)
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 from math import ceil
+from time import time as current_time
 
 
 class State(object):
@@ -6,13 +7,15 @@ class State(object):
 
 
 class SlowStart(object):
+
     @staticmethod
     def next(event, window):
+        window.states_log += "%s,SlowStart,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data)
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
             window.dup_ack_count = 0
-            window.retansmit_missing_segments()
+            window.retansmit_missing_segment(event.data)
             return State.slow_start
 
         elif event.name == "new_ack":
@@ -31,19 +34,21 @@ class SlowStart(object):
         elif event.name == "triple_ack":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.ssthresh + 3 * window.MSS)
-            window.retansmit_missing_segments()
+            window.retansmit_missing_segment(event.data)
             return State.fast_recovery
         raise Exception("Slow start got weird event")
 
 
 class CongestionAvoidance(object):
+
     @staticmethod
     def next(event, window):
+        window.states_log += "%s,CongestionAvoidance,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data)
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
             window.dup_ack_count = 0
-            window.retansmit_missing_segments()
+            window.retansmit_missing_segment(event.data)
             return State.slow_start
 
         elif event.name == "new_ack":
@@ -60,20 +65,22 @@ class CongestionAvoidance(object):
         elif event.name == "triple_ack":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.ssthresh + 3 * window.MSS)
-            window.retansmit_missing_segments()
+            window.retansmit_missing_segment(event.data)
             return State.fast_recovery
 
         raise Exception("Slow start got weird event")
 
 
 class FastRecovery(object):
+
     @staticmethod
     def next(event, window):
+        window.states_log += "%s,FastRecovery,%s,%s\n" % ((current_time() - window.start_time), event.name, event.data)
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
             window.dup_ack_count = 0
-            window.retansmit_missing_segments()
+            window.retansmit_missing_segment(event.data)
             return State.slow_start
 
         elif event.name == "new_ack":
