@@ -26,11 +26,12 @@ def parse_input_sender(argv):
                 To set file, type --file=9000 or -f 9000"""
     try:
         opts, args = getopt.getopt(
-            argv, "hd:p:f:", ["help", "domain=", "port=", "file="])
+            argv, "hd:p:f:l:", ["help", "domain=", "port=", "file=", "loss-file="])
     except getopt.GetoptError:
         print help
         exit(2)
     host, file_name, port = (-1,) * 3
+    loss_file = ""
     for opt, arg in opts:
         if opt in ['-h', "help"]:
             print help
@@ -39,13 +40,15 @@ def parse_input_sender(argv):
             port = int(arg)
         elif opt in ("-d", "--domain"):
             host = arg
+        elif opt in ("-l", "--loss-file"):
+            loss_file = "-" + arg
         elif opt in ("-f", "--file"):
             file_name = arg
     if -1 in [host, file_name, port]:
         print "OI! You didn't supply one of the required values!!!!"
         print help
         exit(2)
-    return host, port, file_name
+    return host, port, file_name, loss_file
 
 
 def parse_input_reciever(argv):

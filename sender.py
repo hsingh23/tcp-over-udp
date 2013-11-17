@@ -4,6 +4,7 @@ from TCPStates import State
 from util import setup_socket_sender, parse_input_sender, Window, Event
 from select import select
 from ipdb import set_trace
+from time import time as current_time
 
 
 class TCPStateMachine(object):
@@ -47,7 +48,7 @@ class TCPStateMachine(object):
 
 
 def main(argv):
-    host, port, file_name = parse_input_sender(argv)
+    host, port, file_name, loss_file = parse_input_sender(argv)
     udp, destination = setup_socket_sender(host, port)
     t = TCPStateMachine(file_name, udp, destination)
 
@@ -59,12 +60,11 @@ def main(argv):
             for sock in rlist:
                 ack, addr = sock.recvfrom(4096)
                 t.run(Event("ack", ack))
-    with open("trace-%s" % file_name, "w") as f:
+    with open("./trace_results/trace-%s%s" % (file_name, loss_file), "w") as f:
         f.writelines(t.window.trace_file)
-    with open("cwnd-%s" % file_name, "w") as f:
+    with open("./cwnd_results/cwnd-%s%s" % (file_name, loss_file), "w") as f:
         f.writelines(t.window.cwnd_file)
-    print t.ack_count
-
+    print t.ack_count, current_time() - t.window.start_time
 
 if __name__ == "__main__":
     main(argv[1:])
