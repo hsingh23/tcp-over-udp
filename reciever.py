@@ -10,6 +10,36 @@ def parse_segment(segment):
     seq, last = ((k.split(":")[1]) for k in header.split(","))
     return (seq, last), data
 
+class Reassemble(object):
+
+    def __init__(self):
+        super(Reassemble, self).__init__()
+        self.buffer = {}
+        self.max_buffer_size = 25
+        self.max_sequence_num = 9000
+        self.result = ""
+        self.cur_sequence = 0
+
+    def buffer_not_full(self):
+        return len(self.buffer) <= self.max_buffer_size
+
+
+    def add(self, seq, data):
+        seq = seq % self.max_sequence_num
+
+        if seq == self.cur_sequence:
+            self.result += seq
+            self.cur_sequence = (self.cur_sequence +1) % self.max_buffer_size
+        elif self.buffer_not_full() and seq > self.cur_sequence:
+            self.buffer[seq] = data
+        for k, v in sorted(self.buffer.iteritems()):
+            if k == self.cur_sequence:
+                self.result += v
+                self.cur_sequence += 1
+                del self.buffer[k]
+            else:
+                break
+        return self.cur_sequence
 
 class Decider(object):
 
