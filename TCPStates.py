@@ -6,8 +6,8 @@ class State(object):
 
 
 class SlowStart(object):
-
-    def next(self, event, window):
+    @staticmethod
+    def next(event, window):
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
@@ -37,8 +37,8 @@ class SlowStart(object):
 
 
 class CongestionAvoidance(object):
-
-    def next(self, event, window):
+    @staticmethod
+    def next(event, window):
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
@@ -67,8 +67,8 @@ class CongestionAvoidance(object):
 
 
 class FastRecovery(object):
-
-    def next(self, event, window):
+    @staticmethod
+    def next(event, window):
         if event.name == "timeout":
             window.ssthresh = ceil(window.cwnd / 2)
             window.update_cwnd(window.MSS)
