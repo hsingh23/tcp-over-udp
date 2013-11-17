@@ -2,13 +2,16 @@
 from sys import argv
 from util import setup_socket_reciever, parse_input_reciever
 from select import select
+from collections import namedtuple
 from ipdb import set_trace
+
+Header = namedtuple("Header", ["sequence_number", "is_last"])
 
 
 def parse_segment(segment):
     header, _, data = segment.partition("##")
     seq, last = ((k.split(":")[1]) for k in header.split(","))
-    return (seq, last), data
+    return Header(seq, int(last)), data
 
 class Reassemble(object):
 
@@ -72,20 +75,19 @@ class Decider(object):
 
 def main(argv):
     port, file_name = parse_input_reciever(argv)
-    udp, addr = setup_socket_reciever(port)
+    udp = setup_socket_reciever(port)
     with open(file_name, "r") as f:
         d = Decider(f.read())
-    not_done = True 
+    not_done = True
     while not_done:
         rlist, _, _ = select([udp], [], [])
         for sock in rlist:
             data, address = sock.recvfrom(4096)
             header, parsed_data = parse_segment(data)
             if d.is_valid():
-                print header
-                udp.sendto(header[0],address)
-
-                if int(header[1]) == 1:
+                udp.sendto(header.sequence_number, address)
+                # print parsed_data
+                if header.is_last == 1:
                     not_done = False
 
 

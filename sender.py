@@ -12,7 +12,7 @@ class TCPStateMachine(object):
         super(TCPStateMachine, self).__init__()
         self.current_state = State.slow_start
         chunks = self.chunkify_file(file_name, 100)
-        self.window = Window(**{"MSS": 100, "ssthresh": 1000, "max_sequence_number": 9000, "max_cwnd": 25, "timeout_length": 3.0, "state_machine": self, "chunks": chunks, "udp": udp, "destination": destination})
+        self.window = Window(**{"MSS": 100.0, "ssthresh": 1000.0, "max_sequence_number": 9000, "max_cwnd": 25, "timeout_length": 1.0, "state_machine": self, "chunks": chunks, "udp": udp, "destination": destination})
         self.window.transmit_as_allowed()
 
     def done(s):
@@ -53,6 +53,10 @@ def main(argv):
             for sock in rlist:
                 ack, addr = sock.recvfrom(4096)
                 t.run(Event("ack", ack))
+    with open("trace-%s" % file_name, "w") as f:
+        f.writelines(t.window.trace_file)
+    with open("cwnd-%s" % file_name, "w") as f:
+        f.writelines(t.window.cwnd_file)
 
 
 if __name__ == "__main__":
