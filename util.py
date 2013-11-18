@@ -1,7 +1,7 @@
 import getopt
 import socket
 from collections import namedtuple, OrderedDict
-from ipdb import set_trace
+# from ipdb import set_trace
 from time import time as current_time
 
 Event = namedtuple("Event", ["name", "data"])
@@ -200,8 +200,8 @@ class Window(object):
             last_ack = s.sequence_counter.next_number(s.last_ack)
             if last_ack in s.sent:
                 s.send_segment(s.sent[last_ack])
-        else:
-            set_trace()
+        # else:
+        #     set_trace()
 
     def empty_window(s):
         return len(s.sent) == 0
