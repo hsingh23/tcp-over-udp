@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>[]</title>
+<title>[Analysis]</title>
 <style type="text/css">
     .clearfix{*zoom:1;}.clearfix:before,.clearfix:after{display:table;content:"";line-height:0;}
 .clearfix:after{clear:both;}
@@ -1745,7 +1745,7 @@ In&nbsp;[42]:
 <div class="cell border-box-sizing code_cell vbox">
 <div class="input hbox">
 <div class="prompt input_prompt">
-In&nbsp;[43]:
+In&nbsp;[50]:
 </div>
 <div class="input_area box-flex1">
 <div class="highlight"><pre><span class="n">t0</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="s">&quot;trace_results/trace-10000_bytes-0&quot;</span><span class="p">)</span>
@@ -2394,6 +2394,9 @@ RCZQMIiIyAQKBhERmUDBICIiEygYRERkgv8HbIyuWuO7URYAAAAASUVORK5CYII=
 </div>
 
 </div>
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Slow start ends at .0048</p>
+</div>
 <div class="cell border-box-sizing code_cell vbox">
 <div class="input hbox">
 <div class="prompt input_prompt">
@@ -2577,10 +2580,13 @@ iIjEUTCIiEgcBYOIiMT5f7UBFkHtxXLYAAAAAElFTkSuQmCC
 </div>
 
 </div>
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Fast recovery begins at .0053 and ends at .0056</p>
+</div>
 <div class="cell border-box-sizing code_cell vbox">
 <div class="input hbox">
 <div class="prompt input_prompt">
-In&nbsp;[49]:
+In&nbsp;[51]:
 </div>
 <div class="input_area box-flex1">
 <div class="highlight"><pre><span class="n">plot</span><span class="p">(</span><span class="n">c2</span><span class="p">)</span>
@@ -2723,6 +2729,9 @@ RU5ErkJggg==
 </div>
 </div>
 
+</div>
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>At 1 second we get out first timeout in slow start and then we keep getting timeouts til time 10. Then we get a new ack followed by a timeout followed by another slowstart at time 11.0174</p>
 </div>
 </body>
 </html>
