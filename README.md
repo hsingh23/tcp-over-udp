@@ -1,6 +1,8 @@
 tcp-over-udp
 ============
 
+Created by Harsh Singh (hsingh23) and Ziqi Peng (peng20)
+
 Going where no one has gone before.
 
 Instructions:
@@ -25,4 +27,4 @@ Finally I also created state_logs which will print the various states the sender
 
 Part 2,3 of the Analysis was done in an ipython notebook and can be seen at Analysis.html included in the directory.
 
-Part 1 is a picture
+Part 1 is in part-1.png
