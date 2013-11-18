@@ -3,7 +3,6 @@ from sys import argv
 from util import setup_socket_reciever, parse_input_reciever
 from select import select
 from collections import namedtuple
-from ipdb import set_trace
 
 Header = namedtuple("Header", ["sequence_number", "is_last"])
 
@@ -89,8 +88,6 @@ def main(argv):
             data, address = sock.recvfrom(4096)
             header, parsed_data = parse_segment(data)
             if d.is_valid():
-                # if header.sequence_number == 24:
-                    # set_trace()
                 ack = reassembler.add(header.sequence_number, parsed_data)
                 print "Got %s, Sent %s" %(header.sequence_number, ack)
                 udp.sendto(ack, address)

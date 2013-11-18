@@ -3,7 +3,7 @@ from sys import argv
 from TCPStates import State
 from util import setup_socket_sender, parse_input_sender, Window, Event
 from select import select
-from ipdb import set_trace
+# from ipdb import set_trace
 from time import time as current_time
 
 
